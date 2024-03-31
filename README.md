@@ -1,8 +1,8 @@
 # Towards a Unified Table Foundation Model
 
 1.  📈 [High-Performance Transformers for Table Structure Recognition Need Early Convolutions](https://arxiv.org/abs/2311.05565). ShengYun Peng, Seongmin Lee, Xiaojing Wang, Rajarajeswari Balasubramaniyan, Duen Horng Chau. In *NeurIPS Second Table Representation Learning Workshop*, 2023. (Oral)
-2.  🚀 Self-Supervised Pretraining for Table Structure Recognition Transformer. ShengYun Peng, Seongmin Lee, Xiaojing Wang, Rajarajeswari Balasubramaniyan, Duen Horng Chau. In *AAAI Scientific Document Understanding Workshop*, 2024. (Oral)
-3.  🆕 UniTable: Towards a Unified Framework for Table Structure Recognition via Self-Supervised Pretraining. ShengYun Peng, Seongmin Lee, Xiaojing Wang, Rajarajeswari Balasubramaniyan, Duen Horng Chau. Coming soon!
+2.  🚀 [Self-Supervised Pretraining for Table Structure Recognition Transformer](https://arxiv.org/abs/2402.15578). ShengYun Peng, Seongmin Lee, Xiaojing Wang, Rajarajeswari Balasubramaniyan, Duen Horng Chau. In *AAAI Scientific Document Understanding Workshop*, 2024. (Oral)
+3.  🆕 [UniTable: Towards a Unified Framework for Table Structure Recognition via Self-Supervised Pretraining](https://arxiv.org/abs/2403.04822). ShengYun Peng, Seongmin Lee, Xiaojing Wang, Rajarajeswari Balasubramaniyan, Duen Horng Chau. Coming soon!
 
 > This repo includes code for linear projection Transformers. For convolutional stem (early convolution) Transformers, please check out our [tsr-convstem repo](https://github.com/poloclub/tsr-convstem). 
 
