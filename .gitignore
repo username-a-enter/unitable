@@ -2,7 +2,7 @@
 .history
 
 # make targets & code outputs
-.venv_done
+.done*
 outputs
 
 # Byte-compiled / optimized / DLL files

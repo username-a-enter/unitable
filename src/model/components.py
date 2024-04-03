@@ -1,5 +1,4 @@
 from typing import Optional, Tuple
-import math
 import torch
 from torch import nn, Tensor
 from torchvision.ops.misc import Conv2dNormActivation
@@ -208,3 +207,26 @@ class PrintLayer(nn.Module):
             )
         )
         return x
+
+
+if __name__ == "__main__":
+    from torchvision import models
+
+    x = torch.rand(1, 3, 392, 392)
+    model = ImgConvStemBackbone(
+        d_model=512, downsample_factor=16, output_channels=64, kernel_size=5
+    )
+    y = model(x)
+    print(model)
+    print(y.shape)
+
+    model = ImgCnnBackbone(
+        backbone=models.resnet34(),
+        output_channels=512,
+        d_model=512,
+        drop_layer=(3, 8, 9),
+    )
+
+    # print(model)
+    y = model(x)
+    print(y.shape)

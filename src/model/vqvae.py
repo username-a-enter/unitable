@@ -1,7 +1,6 @@
 import torch
 from torch import nn, Tensor, einsum
 from typing import Optional, Tuple
-import os
 import math
 from functools import partial
 from collections import OrderedDict
@@ -63,7 +62,7 @@ class BasicVAE(nn.Module):
 class DiscreteVAE(BasicVAE):
     def __init__(
         self,
-        image_size: int = 256,  # input image size
+        image_size: Tuple[int, int] = [256, 256],  # input image size
         codebook_tokens: int = 512,  # codebook vocab size
         codebook_dim: int = 512,  # codebook embedding dimension
         num_layers: int = 3,  # layers of resnet blocks in encoder/decoder
@@ -75,7 +74,6 @@ class DiscreteVAE(BasicVAE):
         kl_div_loss_weight: float = 0.0,
     ):
         super().__init__()
-        # assert log2(image_size).is_integer(), 'image size must be a power of 2'
         assert num_layers >= 1, "number of layers must be greater than or equal to 1"
 
         self.image_size = image_size
@@ -129,8 +127,9 @@ class DiscreteVAE(BasicVAE):
     def get_image_size(self):
         return self.image_size
 
-    def get_image_tokens_size(self):
-        return self.image_size // (math.pow(2, self.num_layers))
+    def get_image_tokens_size(self) -> int:
+        ds_ratio = math.pow(2, self.num_layers)
+        return int((self.image_size[0] // ds_ratio) * (self.image_size[1] // ds_ratio))
 
     @torch.no_grad()
     @eval_decorator
@@ -201,3 +200,14 @@ class DiscreteVAE(BasicVAE):
             return loss
 
         return loss, out
+
+
+if __name__ == "__main__":
+    input = torch.rand(1, 3, 256, 256)
+    model = DiscreteVAE()
+    loss, output = model(input, return_loss=True, return_recons=True)
+
+    print(model)
+    print(model.get_image_tokens_size())
+    print(model.get_codebook_indices(input).shape)
+    print(loss, output.shape, output.max(), output.min())

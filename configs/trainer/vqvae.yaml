@@ -6,6 +6,7 @@ defaults:
 mode: train
 img_size: [256,256]
 label_type: image
+max_seq_len: null
 
 train:
   epochs: 20

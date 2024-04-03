@@ -18,6 +18,6 @@ hydra:
     chdir: true
 
 wandb:
-  project: ADP-Table
+  project: UniTable
 
 seed: 1234

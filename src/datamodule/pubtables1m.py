@@ -9,7 +9,7 @@ import numpy as np
 import os
 import json
 
-from src.utils import load_json_annotations, bbox_augmentation_resize
+from src.utils import bbox_augmentation_resize
 
 
 class PubTables(Dataset):
@@ -103,5 +103,3 @@ class PubTables(Dataset):
                 for i, j in enumerate(bboxes_texts)
             ]
             return img_bboxes, text_bboxes
-        else:
-            raise NotImplementedError

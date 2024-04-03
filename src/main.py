@@ -31,7 +31,7 @@ def main(cfg: DictConfig):
         if device == 0:
             wandb.init(project=cfg.wandb.project, name=cfg.name, resume=True)
 
-    # Only finetuning needs vocab
+    # vocab is used in finetuning, not in self-supervised pretraining
     vocab = None
     if cfg.vocab.need_vocab:
         log.info(
@@ -44,61 +44,41 @@ def main(cfg: DictConfig):
 
     # dataset
     if cfg.trainer.mode == "train":
-        # load training and validation dataset for training
         log.info(printer(device, "Loading training dataset"))
         train_dataset = instantiate(cfg.dataset.train_dataset)
 
         log.info(printer(device, "Loading validation dataset"))
         valid_dataset = instantiate(cfg.dataset.valid_dataset)
 
-        if str(cfg.trainer.train.dataloader._target_).endswith("html"):
-            train_dataloader = instantiate(
-                cfg.trainer.train.dataloader,
-                vocab=vocab,
-                max_seq_len=cfg.trainer.max_seq_len,
-                dataset=train_dataset,
-                sampler=DistributedSampler(train_dataset),
-            )
+        train_kwargs = {
+            "dataset": train_dataset,
+            "sampler": DistributedSampler(train_dataset),
+            "vocab": vocab,
+            "max_seq_len": cfg.trainer.max_seq_len,
+        }
 
-            valid_dataloader = instantiate(
-                cfg.trainer.valid.dataloader,
-                vocab=vocab,
-                max_seq_len=cfg.trainer.max_seq_len,
-                dataset=valid_dataset,
-                sampler=DistributedSampler(valid_dataset),
-            )
-        else:
-            train_dataloader = instantiate(
-                cfg.trainer.train.dataloader,
-                dataset=train_dataset,
-                sampler=DistributedSampler(train_dataset),
-            )
+        valid_kwargs = {
+            "dataset": valid_dataset,
+            "sampler": DistributedSampler(valid_dataset),
+            "vocab": vocab,
+            "max_seq_len": cfg.trainer.max_seq_len,
+        }
 
-            valid_dataloader = instantiate(
-                cfg.trainer.valid.dataloader,
-                dataset=valid_dataset,
-                sampler=DistributedSampler(valid_dataset),
-            )
-
+        train_dataloader = instantiate(cfg.trainer.train.dataloader, **train_kwargs)
+        valid_dataloader = instantiate(cfg.trainer.valid.dataloader, **valid_kwargs)
     elif cfg.trainer.mode == "test":
         # load testing dataset, same as valid for ssl
         log.info(printer(device, "Loading testing dataset"))
         test_dataset = instantiate(cfg.dataset.test_dataset)
 
-        if str(cfg.trainer.test.dataloader._target_).endswith("html"):
-            test_dataloader = instantiate(
-                cfg.trainer.test.dataloader,
-                vocab=vocab,
-                max_seq_len=cfg.trainer.test.max_seq_len,
-                dataset=test_dataset,
-                sampler=DistributedSampler(test_dataset),
-            )
-        else:
-            test_dataloader = instantiate(
-                cfg.trainer.test.dataloader,
-                dataset=test_dataset,
-                sampler=DistributedSampler(test_dataset),
-            )
+        test_kwargs = {
+            "dataset": test_dataset,
+            "sampler": DistributedSampler(test_dataset),
+            "vocab": vocab,
+            "max_seq_len": cfg.trainer.max_seq_len,
+        }
+
+        test_dataloader = instantiate(cfg.trainer.test.dataloader, **test_kwargs)
 
     # model
     log.info(printer(device, "Loading model ..."))
@@ -107,8 +87,8 @@ def main(cfg: DictConfig):
         model = instantiate(cfg.model.model)
     elif model_name == "BeitEncoder":
         max_seq_len = (
-            cfg.trainer.trans_size // cfg.model.backbone_downsampling_factor
-        ) ** 2
+            cfg.trainer.trans_size[0] // cfg.model.backbone_downsampling_factor
+        ) * (cfg.trainer.trans_size[1] // cfg.model.backbone_downsampling_factor)
         model = instantiate(
             cfg.model.model,
             max_seq_len=max_seq_len,
@@ -143,43 +123,28 @@ def main(cfg: DictConfig):
     # trainer
     log.info(printer(device, "Loading trainer ..."))
     trainer_name = str(cfg.trainer.trainer._target_).split(".")[-1]
+    trainer_kwargs = {
+        "device": device,
+        "model": model,
+        "log": log,
+        "exp_dir": exp_dir,
+        "snapshot": (
+            exp_dir / "snapshot" / cfg.trainer.trainer.snapshot
+            if cfg.trainer.trainer.snapshot
+            else None
+        ),
+    }
+
     if trainer_name == "VqvaeTrainer":
-        trainer = instantiate(
-            cfg.trainer.trainer,
-            device=device,
-            model=model,
-            log=log,
-            exp_dir=exp_dir,
-            snapshot=exp_dir / "snapshot" / cfg.trainer.trainer.snapshot
-            if cfg.trainer.trainer.snapshot
-            else None,
-        )
+        trainer = instantiate(cfg.trainer.trainer, **trainer_kwargs)
     elif trainer_name == "BeitTrainer":
-        trainer = instantiate(
-            cfg.trainer.trainer,
-            device=device,
-            model=model,
-            model_vqvae=model_vqvae,
-            log=log,
-            exp_dir=exp_dir,
-            snapshot=exp_dir / "snapshot" / cfg.trainer.trainer.snapshot
-            if cfg.trainer.trainer.snapshot
-            else None,
-        )
+        trainer_kwargs["model_vqvae"] = model_vqvae
+        trainer = instantiate(cfg.trainer.trainer, **trainer_kwargs)
     elif trainer_name == "TableTrainer":
-        trainer = instantiate(
-            cfg.trainer.trainer,
-            device=device,
-            model=model,
-            vocab=vocab,
-            log=log,
-            exp_dir=exp_dir,
-            snapshot=exp_dir / "snapshot" / cfg.trainer.trainer.snapshot
-            if cfg.trainer.trainer.snapshot
-            else None,
-        )
+        trainer_kwargs["vocab"] = vocab
+        trainer = instantiate(cfg.trainer.trainer, **trainer_kwargs)
     else:
-        raise NotImplementedError
+        raise ValueError(f"The provided trainer type {trainer_name} is not supported.")
 
     if cfg.trainer.mode == "train":
         log.info(printer(device, "Training starts ..."))

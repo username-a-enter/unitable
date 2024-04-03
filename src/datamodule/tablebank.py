@@ -9,8 +9,6 @@ import numpy as np
 import os
 import json
 
-from src.utils import load_json_annotations, bbox_augmentation_resize
-
 
 class TableBank(Dataset):
     """tablebank recognition"""
@@ -46,4 +44,4 @@ class TableBank(Dataset):
         if self.label_type == "image":
             return img
         else:
-            raise NotImplementedError
+            raise ValueError("TableBank doesn't have HTML annotations.")

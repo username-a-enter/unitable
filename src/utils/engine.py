@@ -41,7 +41,7 @@ def json_to_final(file_dir: str, type: str):
         raise NotImplementedError
 
     out = dict()
-    
+
     if type == "bbox":
         out = result
     else:

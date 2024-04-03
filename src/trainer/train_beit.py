@@ -1,4 +1,3 @@
-import math
 import wandb
 from pathlib import Path
 from typing import Tuple, List, Union, Dict
@@ -7,16 +6,10 @@ from hydra.utils import instantiate
 import logging
 import torch
 import time
-from functools import partial
 from torch import nn, Tensor, autograd
 from torch.utils.data import DataLoader
-from torch.optim import Adam
-from torch.optim.lr_scheduler import ExponentialLR
 from torch.nn.parallel import DistributedDataParallel as DDP
-import torch.distributed as dist
-from torchvision.utils import make_grid
 
-from src.model.vqvae import DiscreteVAE
 from src.utils import printer, compute_grad_norm
 from src.trainer.utils import configure_optimizer_weight_decay
 
@@ -166,7 +159,6 @@ class BeitTrainer:
             valid_loss = self.valid(valid_cfg)
 
             if self.device == 0:
-
                 wandb.log(
                     {
                         "train loss (epoch)": train_loss,

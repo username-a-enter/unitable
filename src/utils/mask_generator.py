@@ -3,7 +3,9 @@ import math
 from typing import Any
 import numpy as np
 
-"""Beit mask generator: https://github.com/microsoft/unilm/blob/ecff36188001e9b12a90b01bbbaf9058d2b8bda6/beit/masking_generator.py ."""
+"""
+Code adapted from beit mask generator: https://github.com/microsoft/unilm/blob/ecff36188001e9b12a90b01bbbaf9058d2b8bda6/beit/masking_generator.py .
+"""
 
 __all__ = ["MaskGenerator"]
 
@@ -87,3 +89,8 @@ class MaskGenerator:
         return mask
 
 
+if __name__ == "__main__":
+    mg = MaskGenerator(input_size=14, num_mask_patches=75)
+    mask = mg()
+    print(mask)
+    print(mg, mask.sum())

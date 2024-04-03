@@ -1,6 +1,4 @@
 from typing import Tuple, Any, Optional, Union
-import os
-import torch
 from torch import Tensor
 import random
 from PIL import Image
@@ -21,7 +19,7 @@ get_interpolation = lambda method: _PIL_INTERPOLATION.get(method, Image.BILINEAR
 
 
 class RandomResizedCropAndInterpolationWithTwoPic(transforms.RandomResizedCrop):
-    """Ensure both crops of vqvae and transformer have the same scale and size."""
+    """Ensure both crops of vqvae and visual encoder have the same scale and size."""
 
     def __init__(
         self,
@@ -94,3 +92,17 @@ class AugmentationForMIM(object):
         vqvae_img = self.vqvae_transform(vqvae_img)
 
         return trans_img, vqvae_img
+
+
+if __name__ == "__main__":
+    mean = [240.380, 240.390, 240.486]
+    std = [45.735, 45.785, 45.756]
+
+    T = RandomResizedCropAndInterpolationWithTwoPic(
+        size=(256, 256),
+        second_size=(256, 256),
+        interpolation="bicubic",
+        second_interpolation="lanczos",
+    )
+
+    print(T)

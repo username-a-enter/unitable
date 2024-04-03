@@ -10,6 +10,7 @@ import os
 
 from src.utils import load_json_annotations, bbox_augmentation_resize
 
+# invalid data pairs: image_000000_1634629424.098128.png has 4 channels
 INVALID_DATA = [
     {
         "dataset": "fintabnet",
@@ -24,10 +25,6 @@ INVALID_DATA = [
 ]
 
 
-# average html annotation length: train:
-# samples train: , val:
-# some images have 4 channels:
-# marketing train/image_000000_1634629424.098128.png
 class Synthtabnet(Dataset):
     def __init__(
         self,
@@ -46,7 +43,7 @@ class Synthtabnet(Dataset):
         self.transform = transform
         self.cell_limit = cell_limit
 
-        # training vae only needs image
+        # SSP only needs image
         self.img_list = os.listdir(self.root_dir / self.split)
         if label_type != "image":
             self.image_label_pair = load_json_annotations(
@@ -58,7 +55,6 @@ class Synthtabnet(Dataset):
 
     def __getitem__(self, index: int) -> Any:
         if self.label_type == "image":
-            # training vqvae and pretraining visual encoder only needs images
             img = Image.open(self.root_dir / self.split / self.img_list[index])
             if self.transform:
                 sample = self.transform(img)
@@ -86,14 +82,13 @@ class Synthtabnet(Dataset):
 
                 img_bboxes = [
                     self.transform(img.crop(bbox[0])) for bbox in bboxes_texts
-                ]  # crop to a limit number of boxes for gpu memory
+                ]  # you can limit the total cropped cells to lower gpu memory
 
                 text_bboxes = [
                     {"filename": obj[0], "bbox_id": i, "cell": j[1]}
                     for i, j in enumerate(bboxes_texts)
                 ]
                 return img_bboxes, text_bboxes
-
             else:
                 img_size = img.size
                 if self.transform:

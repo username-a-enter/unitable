@@ -1,7 +1,6 @@
 import torch
-from torchmetrics.detection import IntersectionOverUnion, MeanAveragePrecision
-
-from src.utils import bbox_str_to_token_list
+from torchmetrics.detection import MeanAveragePrecision
+from pprint import pprint
 
 
 def compute_coco_map(file):
@@ -28,15 +27,11 @@ def compute_coco_map(file):
         backend="faster_coco_eval",
     )
     metric.update(coco_pred, coco_gt)
-    from pprint import pprint
-
     pprint(metric.compute())
 
 
 if __name__ == "__main__":
     import json
-    import pprint
-    import numpy as np
     import argparse
 
     parser = argparse.ArgumentParser(description="mAP Computation")

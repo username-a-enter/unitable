@@ -79,3 +79,49 @@ class BeitEncoder(nn.Module):
             return self.generator(x)
         else:
             return self.generator(x[bool_masked_pos])
+
+
+if __name__ == "__main__":
+    d_model = 512
+    patch_size = 16
+    nhead = 8
+    dropout = 0.0
+    acitvation = "gelu"
+    norm_first = True
+    nlayer = 12
+    ff_ratio = 4
+    norm_layer = partial(nn.LayerNorm, eps=1e-6)
+    codebook_tokens = 8192
+
+    img_size = 448
+
+    max_seq_len = (img_size // patch_size) ** 2
+
+    backbone = ImgLinearBackbone(d_model=d_model, patch_size=patch_size)
+    encoder = Encoder(
+        d_model=d_model,
+        nhead=nhead,
+        dropout=dropout,
+        activation=acitvation,
+        norm_first=norm_first,
+        nlayer=nlayer,
+        ff_ratio=ff_ratio,
+    )
+
+    model = BeitEncoder(
+        d_model=d_model,
+        backbone=backbone,
+        max_seq_len=max_seq_len,
+        codebook_tokens=codebook_tokens,
+        dropout=dropout,
+        encoder=encoder,
+        norm_layer=norm_layer,
+    )
+
+    print(model)
+
+    x = torch.rand((1, 3, img_size, img_size))
+    bool_masked_pos = torch.rand((1, (img_size // patch_size) ** 2)) < 0.5
+    y = model(x, bool_masked_pos)
+    print(torch.sum(bool_masked_pos))
+    print(y.shape)

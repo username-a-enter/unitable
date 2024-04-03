@@ -45,39 +45,18 @@ def combine_cell_char_seq(seq: List[str]) -> str:
 
 
 def prepare_html_seq(seq: List[str]) -> List[str]:
-    """Convert html annotations to html training template.
-
-    HTML template: [html] <thead> <tr> ...
-    """
+    """Convert html annotations to html training template."""
     out = ["[html]", *seq, "<eos>"]
     return out
 
 
 def prepare_cell_seq(seq: str) -> List[str]:
-    """Convert cell sequence to training template
-
-    Cell template
-
-    """
+    """Convert cell sequence to training template."""
     for black in CELL_SPECIAL:
         seq = seq.replace(black, "")
     out = ["[cell]", seq, "<eos>"]
 
     return out
-
-
-def random_continuous_sequence(seq: List, N: int, length: int = 10) -> List:
-    """Randomly sample a continuous sub-sequence from a sequence for N times."""
-    start_idx = [random.randrange(len(seq)) for _ in range(N)]
-    subseq_len = [random.randrange(1, length) for _ in range(N)]
-    output = [(i, min(i + j, len(seq))) for i, j in zip(start_idx, subseq_len)]
-    # output = [seq[i : min(i + j, len(seq))] for i, j in zip(start_idx, subseq_len)]
-
-    return output
-
-
-def ordered_continuous_sequence(seq: List, length):
-    pass
 
 
 def prepare_bbox_seq(seq: List[dict]):
@@ -87,12 +66,59 @@ def prepare_bbox_seq(seq: List[dict]):
     return out
 
 
+def random_continuous_sequence(seq: List, N: int, length: int = 10) -> List:
+    """Randomly sample a continuous sub-sequence from a sequence for N times."""
+    start_idx = [random.randrange(len(seq)) for _ in range(N)]
+    subseq_len = [random.randrange(1, length) for _ in range(N)]
+    output = [(i, min(i + j, len(seq))) for i, j in zip(start_idx, subseq_len)]
+
+    return output
+
+
+# def prepare_bbox_seq(
+#     seq: List[dict],
+#     N: int,
+#     delimiter: str = "<sep>",
+# ) -> List[List[str]]:
+#     """Convert the annotation to bbox input/output sequence."""
+#     out = list()
+#     # bbox_loss_start_idx = list()
+
+#     subseq_idx = random_continuous_sequence(seq, N)
+
+#     for idx in subseq_idx:
+#         entry = seq[idx[0] : idx[1]]
+#         tmp = list()
+#         bbox_seq = list()
+#         for i in entry:
+#             if "tokens" in i.keys():
+#                 # pubtabnet and synthtabnet
+#                 tmp.append(combine_cell_char_seq(i["tokens"]))
+#                 if "bbox" in i.keys():
+#                     bbox_seq.extend([f"bbox-{round(j)}" for j in i["bbox"]])
+#             elif "text" in i.keys():
+#                 # pubtables and icdar
+#                 tmp.append(i["text"])
+#                 if "bbox" in i.keys():
+#                     bbox_seq.extend([f"bbox-{round(j)}" for j in i["bbox"]])
+
+#         cell_seq = [delimiter] * len(tmp)
+#         cell_seq = [q for pair in zip(tmp, cell_seq) for q in pair]
+#         cell_seq = ["[bbox]", f"{len(entry)}-cell(s)", delimiter] + cell_seq
+
+#         bbox_seq.append("<eos>")
+#         # bbox_loss_start_idx.append(len(cell_seq))
+#         out.append(cell_seq + bbox_seq)
+
+#     return out
+
+
 def html_str_to_token_list(
     seq: str, splitter: tk.pre_tokenizers.PreTokenizer = None
 ) -> List[str]:
     """Convert decode output (str) to a list of tokens for constructing html table code"""
 
-    # work for no <eos>
+    # works for no <eos>
     seq = seq.split("<eos>")[0]
 
     token_black_list = ["<eos>", "<pad>", *TASK_TOKENS]
@@ -103,6 +129,7 @@ def html_str_to_token_list(
         splitter = tk.pre_tokenizers.Split(pattern=" ", behavior="contiguous")
 
     seq = splitter.pre_tokenize_str(seq)
+    # only preserve the space for spanning cell tokens
     seq = [i[0] for i in seq if len(i[0].strip()) != 0 or i[1][1] - i[1][0] != 1]
 
     return seq
@@ -281,7 +308,9 @@ def combine_filename_pred_gt(
             pred_token_list = bbox_str_to_token_list(pred_token[idx])
             gt_token_list = bbox_str_to_token_list(gt_token[idx])
         else:
-            raise NotImplementedError
+            raise ValueError(
+                f"The supported tasks are html, cell and bbox, while {type} is provided."
+            )
 
         out[name] = dict(pred=pred_token_list, gt=gt_token_list)
 

@@ -1,19 +1,15 @@
 from typing import Tuple, List, Union, Dict, Optional
 import torch
-import time
 import wandb
 import json
 import os
 from torch import nn, Tensor, autograd
 from torch.utils.data import DataLoader
-from torchtext.vocab import Vocab
 from omegaconf import DictConfig
 from hydra.utils import instantiate
 import logging
 from pathlib import Path
 from torch.nn.parallel import DistributedDataParallel as DDP
-import torch.distributed as dist
-from torch.utils.data import default_collate
 import tokenizers as tk
 import torch.nn.functional as F
 
@@ -31,20 +27,16 @@ from src.utils import (
     count_total_parameters,
     batch_autoregressive_decode,
     combine_filename_pred_gt,
-    # merge_html_filename_pred_gt,
-    # to_html_table,
 )
-
-# save and load step in weights
 
 SNAPSHOT_KEYS = set(["EPOCH", "STEP", "OPTIMIZER", "LR_SCHEDULER", "MODEL", "LOSS"])
 
 
 class TableTrainer:
-    """A trainer for table structure recognition. The supported tasks are:
+    """A trainer for table recognition. The supported tasks are:
     1) table structure extraction
-    2) table cell content extraction
-    3) table cell bbox detection
+    2) table cell bbox detection
+    3) table cell content recognition
 
     Args:
     ----
@@ -56,7 +48,7 @@ class TableTrainer:
         snapshot: specify which snapshot to use, only used in training
         model_weights: specify which model weight to use, only used in testing
         beit_pretrained_weights: load SSL pretrained visual encoder
-        freeze_beit: (NOT IMPLEMENTED) freeze beit weights for the first {freeze_beit} epochs
+        freeze_beit_epoch: freeze beit weights for the first {freeze_beit_epoch} epochs
     """
 
     def __init__(
@@ -139,7 +131,6 @@ class TableTrainer:
         loss_weights: List[float],
         grad_clip: float = None,
     ):
-        # start = time.time()
         avg_loss = 0.0
 
         # load data from dataloader
@@ -452,6 +443,7 @@ class TableTrainer:
             if key in beit:
                 del beit[key]
 
+        # max_seq_len in finetuning may go beyond the length in pretraining
         if (
             self.model.pos_embed.embedding.weight.shape[0]
             != beit["pos_embed.embedding.weight"].shape[0]

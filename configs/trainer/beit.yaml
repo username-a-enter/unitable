@@ -9,6 +9,7 @@ vqvae_size: 224
 grid_size: 28
 num_mask_patches: 300
 min_num_patches: 16
+max_seq_len: null
 
 vqvae_weights: null
 

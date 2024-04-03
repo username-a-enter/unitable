@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-VENV_NAME := adp
+VENV_NAME := unitable
 CONDA_ACTIVATE := source $$(conda info --base)/etc/profile.d/conda.sh && conda activate $(VENV_NAME)
 PYTHON := $(CONDA_ACTIVATE) && python
 PIP := $(CONDA_ACTIVATE) && pip3
@@ -18,11 +18,43 @@ endif
 clean:
 > rm -f .venv_done
 
-.venv_done: clean
-> conda create -n $(VENV_NAME) python=3.9
+.done_venv: clean
+> conda create -n $(VENV_NAME) python=3.9 -y
 > $(PIP) install -r requirements.txt
 > $(PIP) install -e .
 > touch $@
+
+#
+# Download pretrained and UniTable model weights
+#
+WEIGHTS_PATH = experiments/unitable_weights
+M_VQVAE_1M = $(WEIGHTS_PATH)/vqvae_1m.pt
+M_VQVAE_2M = $(WEIGHTS_PATH)/vqvae_2m.pt
+M_SSP_1M_BASE = $(WEIGHTS_PATH)/ssp_1m_base.pt
+M_SSP_1M_LARGE = $(WEIGHTS_PATH)/ssp_1m_large.pt
+M_SSP_2M_BASE = $(WEIGHTS_PATH)/ssp_2m_base.pt
+M_SSP_2M_LARGE = $(WEIGHTS_PATH)/ssp_2m_large.pt
+UNITABLE_HTML = $(WEIGHTS_PATH)/unitable_large_structure.pt
+UNITABLE_BBOX = $(WEIGHTS_PATH)/unitable_large_bbox.pt
+UNITABLE_CELL = $(WEIGHTS_PATH)/unitable_large_content.pt
+
+.done_download_weights:
+ifeq ("$(words $(wildcard $(WEIGHTS_PATH)/*.pt))", "9")
+> $(info All 9 model weights have already been downloaded to $(WEIGHTS_PATH).)
+else
+> $(info There should be 9 weights file under $(WEIGHTS_PATH), but only $(words $(wildcard $(WEIGHTS_PATH)/*.pt)) are found.)
+> $(info Begin downloading weights from HuggingFace ...)
+> wget -c https://huggingface.co/poloclub/UniTable/resolve/main/vqvae_1m.pt -P $(WEIGHTS_PATH)
+> wget -c https://huggingface.co/poloclub/UniTable/resolve/main/vqvae_2m.pt -P $(WEIGHTS_PATH)
+> wget -c https://huggingface.co/poloclub/UniTable/resolve/main/ssp_1m_base.pt -P $(WEIGHTS_PATH)
+> wget -c https://huggingface.co/poloclub/UniTable/resolve/main/ssp_1m_large.pt -P $(WEIGHTS_PATH)
+> wget -c https://huggingface.co/poloclub/UniTable/resolve/main/ssp_2m_base.pt -P $(WEIGHTS_PATH)
+> wget -c https://huggingface.co/poloclub/UniTable/resolve/main/ssp_2m_large.pt -P $(WEIGHTS_PATH)
+> wget -c https://huggingface.co/poloclub/UniTable/resolve/main/unitable_large_structure.pt -P $(WEIGHTS_PATH)
+> wget -c https://huggingface.co/poloclub/UniTable/resolve/main/unitable_large_bbox.pt -P $(WEIGHTS_PATH)
+> wget -c https://huggingface.co/poloclub/UniTable/resolve/main/unitable_large_content.pt -P $(WEIGHTS_PATH)
+> $(info Completed!)
+endif
 
 #
 # Python Targets
@@ -34,169 +66,20 @@ RESULT_JSON := html.json
 TEDS_STRUCTURE = -f "../experiments/$*/$(RESULT_JSON)" -s
 
 ######################
-NGPU := 1
+NGPU := 1  # number of gpus used in the experiments
 
 .SECONDARY:
 
-# training
-experiments/%/.done_train:
+# vq-vae and self-supervised pretraining
+experiments/%/.done_pretrain:
 > @echo "Using experiment configurations from variable EXP_$*"
 > cd $(SRC) && $(TORCHRUN) -m main ++name=$* $(EXP_$*) ++trainer.mode="train"
 > touch $@
 
+# finetuning from SSP weights for table structure, cell bbox and cell content
 experiments/%/.done_finetune:
 > @echo "Finetuning phase 1 - using experiment configurations from variable EXP_$*"
 > cd $(SRC) && $(TORCHRUN) -m main ++name=$* $(EXP_$*) ++trainer.mode="train"
 > @echo "Finetuning phase 2 - starting from epoch 4"
 > cd $(SRC) && $(TORCHRUN) -m main ++name=$* $(EXP_$*) ++trainer.mode="train" ++trainer.trainer.snapshot="epoch3_snapshot.pt" ++trainer.trainer.beit_pretrained_weights=null
-> touch $@
-
-# =============
-# experiments/mini_pubtabnet/.done_%:
-# > @echo "Testing model $* on mini_pubtabnet"
-# > @rm -f $(@D)/$*/*
-# > @mkdir -p $(@D)
-# > cd $(SRC) && $(TORCHRUN) -m main ++name=$* $(EXP_$*) ++trainer.mode="test" \
-#   ++hydra.run.dir="../$(@D)" $(MINIPUBTABNET) ++trainer.trainer.model_weights=$(BEST_MODEL)
-# > cd $(SRC) && $(PYTHON) -m utils.engine -f ../$(@D)/$* -t $(word 2,$(subst -, ,$*))
-# > touch $@
-
-# experiments/mini_pubtabnet/.teds_%:
-# > @echo "Testing model $* on mini_pubtabnet for teds"
-# > cd $(SRC) && $(PYTHON) -m utils.teds \
-#   -f ../$(@D)/$*/final.json -t $(word 2,$(subst -, ,$*))
-# # # > touch $@
-
-# experiments/mini_pubtabnet/.map_%:
-# > @echo "Testing model $* on mini_pubtabnet for teds"
-# > cd $(SRC) && $(PYTHON) -m utils.coco_map -f ../$(@D)/$*/final.json
-# # # > touch $@
-
-experiments/syn_fintabnet/.done_%:
-> @echo "Testing model $* on synthtabnet fintabnet"
-> @rm -f $(@D)/$*/*
-> @mkdir -p $(@D)
-> cd $(SRC) && $(TORCHRUN) -m main ++name=$* $(EXP_$*) ++trainer.mode="test" \
-  ++hydra.run.dir="../$(@D)" $(SYN_fin) ++trainer.trainer.model_weights=$(BEST_MODEL)
-> cd $(SRC) && $(PYTHON) -m utils.engine -f ../$(@D)/$* -t $(word 2,$(subst -, ,$*))
-> touch $@
-
-experiments/syn_fintabnet/.teds_%: experiments/syn_fintabnet/.done_%
-> @echo "Testing model $* on syn_fintabnet for teds"
-> cd $(SRC) && $(PYTHON) -m utils.teds \
-  -f ../$(@D)/$*/final.json -t $(word 2,$(subst -, ,$*))
-> touch $@
-
-experiments/syn_fintabnet/.map_%: experiments/syn_fintabnet/.done_%
-> @echo "Testing model $* on syn_fintabnet for mAP"
-> cd $(SRC) && $(PYTHON) -m utils.coco_map -f ../$(@D)/$*/final.json
-> touch $@
-
-experiments/syn_marketing/.done_%:
-> @echo "Testing model $* on synthtabnet marketing"
-> @rm -f $(@D)/$*/*
-> @mkdir -p $(@D)
-> cd $(SRC) && $(TORCHRUN) -m main ++name=$* $(EXP_$*) ++trainer.mode="test" \
-  ++hydra.run.dir="../$(@D)" $(SYN_market) ++trainer.trainer.model_weights=$(BEST_MODEL)
-> cd $(SRC) && $(PYTHON) -m utils.engine -f ../$(@D)/$* -t $(word 2,$(subst -, ,$*))
-> touch $@
-
-experiments/syn_marketing/.teds_%: experiments/syn_marketing/.done_%
-> @echo "Testing model $* on syn_marketing for teds"
-> cd $(SRC) && $(PYTHON) -m utils.teds \
-  -f ../$(@D)/$*/final.json -t $(word 2,$(subst -, ,$*))
-> touch $@
-
-experiments/syn_marketing/.map_%: experiments/syn_marketing/.done_%
-> @echo "Testing model $* on syn_marketing for mAP"
-> cd $(SRC) && $(PYTHON) -m utils.coco_map -f ../$(@D)/$*/final.json
-> touch $@
-
-experiments/syn_pubtabnet/.done_%:
-> @echo "Testing model $* on synthtabnet pubtabnet"
-> @rm -f $(@D)/$*/*
-> @mkdir -p $(@D)
-> cd $(SRC) && $(TORCHRUN) -m main ++name=$* $(EXP_$*) ++trainer.mode="test" \
-  ++hydra.run.dir="../$(@D)" $(SYN_pub) ++trainer.trainer.model_weights=$(BEST_MODEL)
-> cd $(SRC) && $(PYTHON) -m utils.engine -f ../$(@D)/$* -t $(word 2,$(subst -, ,$*))
-> touch $@
-
-experiments/syn_pubtabnet/.teds_%: experiments/syn_pubtabnet/.done_%
-> @echo "Testing model $* on syn_pubtabnet for teds"
-> cd $(SRC) && $(PYTHON) -m utils.teds \
-  -f ../$(@D)/$*/final.json -t $(word 2,$(subst -, ,$*))
-> touch $@
-
-experiments/syn_pubtabnet/.map_%: experiments/syn_pubtabnet/.done_%
-> @echo "Testing model $* on syn_pubtabnet for mAP"
-> cd $(SRC) && $(PYTHON) -m utils.coco_map -f ../$(@D)/$*/final.json
-> touch $@
-
-experiments/syn_sparse/.done_%:
-> @echo "Testing model $* on synthtabnet sparse"
-> @rm -f $(@D)/$*/*
-> @mkdir -p $(@D)
-> cd $(SRC) && $(TORCHRUN) -m main ++name=$* $(EXP_$*) ++trainer.mode="test" \
-  ++hydra.run.dir="../$(@D)" $(SYN_sparse) ++trainer.trainer.model_weights=$(BEST_MODEL)
-> cd $(SRC) && $(PYTHON) -m utils.engine -f ../$(@D)/$* -t $(word 2,$(subst -, ,$*))
-> touch $@
-
-experiments/syn_sparse/.teds_%: experiments/syn_sparse/.done_%
-> @echo "Testing model $* on syn_sparse for teds"
-> cd $(SRC) && $(PYTHON) -m utils.teds \
-  -f ../$(@D)/$*/final.json -t $(word 2,$(subst -, ,$*))
-> touch $@
-
-experiments/syn_sparse/.map_%: experiments/syn_sparse/.done_%
-> @echo "Testing model $* on syn_sparse for mAP"
-> cd $(SRC) && $(PYTHON) -m utils.coco_map -f ../$(@D)/$*/final.json
-> touch $@
-
-experiments/pubtabnet/.done_%:
-> @echo "Testing model $* on pubtabnet"
-> @rm -f $(@D)/$*/*
-> @mkdir -p $(@D)
-> cd $(SRC) && $(TORCHRUN) -m main ++name=$* $(EXP_$*) ++trainer.mode="test" \
-  ++hydra.run.dir="../$(@D)" $(PUBTABNET) ++trainer.trainer.model_weights=$(BEST_MODEL)
-> cd $(SRC) && $(PYTHON) -m utils.engine -f ../$(@D)/$* -t $(word 2,$(subst -, ,$*))
-> touch $@
-
-experiments/pubtabnet/.teds_%: experiments/pubtabnet/.done_%
-> @echo "Testing model $* on pubtabnet for teds"
-> cd $(SRC) && $(PYTHON) -m utils.teds \
-  -f ../$(@D)/$*/final.json -t $(word 2,$(subst -, ,$*))
-> touch $@
-
-experiments/pubtabnet/.map_%: experiments/pubtabnet/.done_%
-> @echo "Testing model $* on pubtabnet for mAP"
-> cd $(SRC) && $(PYTHON) -m utils.coco_map -f ../$(@D)/$*/final.json
-> touch $@
-
-experiments/pubtables1m/.done_%:
-> @echo "Testing model $* on pubtables1m"
-> @rm -f $(@D)/$*/*
-> @mkdir -p $(@D)
-> cd $(SRC) && $(TORCHRUN) -m main ++name=$* $(EXP_$*) ++trainer.mode="test" \
-  ++hydra.run.dir="../$(@D)" $(PUBTABLES1M) ++trainer.trainer.model_weights=$(BEST_MODEL)
-> cd $(SRC) && $(PYTHON) -m utils.engine -f ../$(@D)/$* -t $(word 2,$(subst -, ,$*))
-> touch $@
-
-experiments/pubtables1m/.map_%: experiments/pubtables1m/.done_%
-> @echo "Testing model $* on pubtables1m for mAP"
-> cd $(SRC) && $(PYTHON) -m utils.coco_map -f ../$(@D)/$*/final.json
-> touch $@
-
-experiments/fintabnet/.done_%:
-> @echo "Testing model $* on fintabnet"
-> @rm -f $(@D)/$*/*
-> @mkdir -p $(@D)
-> cd $(SRC) && $(TORCHRUN) -m main ++name=$* $(EXP_$*) ++trainer.mode="test" \
-  ++hydra.run.dir="../$(@D)" $(FINTABNET) ++trainer.trainer.model_weights=$(BEST_MODEL)
-> cd $(SRC) && $(PYTHON) -m utils.engine -f ../$(@D)/$* -t $(word 2,$(subst -, ,$*))
-> touch $@
-
-experiments/fintabnet/.teds_%: experiments/fintabnet/.done_%
-> @echo "Testing model $* on fintabnet for teds"
-> cd $(SRC) && $(PYTHON) -m utils.teds \
-  -f ../$(@D)/$*/final.json -t $(word 2,$(subst -, ,$*))
 > touch $@

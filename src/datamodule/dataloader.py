@@ -1,20 +1,14 @@
 from typing import Any
 from torch.utils.data import DataLoader, Dataset, Sampler
-import torch.nn.functional as F
 from functools import partial
 import tokenizers as tk
 import torch
-from torchtext.vocab import Vocab
 from torch.utils.data import default_collate
-from torchvision.datasets import CIFAR10
 from src.utils.mask_generator import MaskGenerator
-from torchtext.data.utils import get_tokenizer
 from src.utils import (
-    # random_continuous_sequence,
     prepare_html_seq,
     prepare_cell_seq,
     prepare_bbox_seq,
-    combine_cell_char_seq,
 )
 
 
@@ -38,14 +32,12 @@ class Collator:
         vocab: tk.Tokenizer,
         label_type: str,
     ):
-        # images
         if "cell" in label_type:
             image_list = [j for i in batch for j in i[0]]
         else:
             image_list = [i["image"] for i in batch]
         image_list = default_collate(image_list)
 
-        # labels
         if "cell" in label_type:
             filename = [(j["filename"], j["bbox_id"]) for i in batch for j in i[1]]
         else:
@@ -83,7 +75,7 @@ def generate_mask_for_batch_samples(
 
 
 def dataloader_vae(
-    dataset: Dataset, batch_size: int, sampler: Sampler = None
+    dataset: Dataset, batch_size: int, sampler: Sampler = None, **kwargs
 ) -> DataLoader:
     dataloader = DataLoader(
         dataset, batch_size, sampler=sampler, num_workers=8, pin_memory=True
@@ -99,6 +91,7 @@ def dataloader_beit(
     min_num_patches: int,
     batch_size: int,
     sampler: Sampler = None,
+    **kwargs
 ):
     dataloader = DataLoader(
         dataset,

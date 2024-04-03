@@ -237,15 +237,8 @@ if __name__ == "__main__":
 
     parser.add_argument("-f", "--file", help="path to html table results in json file")
     parser.add_argument("-t", "--type", help="html, html+cell")
-    # parser.add_argument(
-    #     "-s", "--structure", action="store_true", help="teds for structure only"
-    # )
     parser.add_argument("-n", "--njob", default=200, help="number of jobs in parallel")
     args = parser.parse_args()
-
-    # results_file = (
-    #     "/raid/speng65/MISC/adp_tables/experiments/imglinear_p28/html_table_result.json"
-    # )
 
     results_file = args.file
     with open(results_file, "r") as f:

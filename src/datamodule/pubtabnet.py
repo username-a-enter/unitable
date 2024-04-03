@@ -1,6 +1,5 @@
 from typing import Any, Literal, Union
 from pathlib import Path
-import jsonlines
 from PIL import Image
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -11,6 +10,8 @@ import os
 from src.utils import load_json_annotations, bbox_augmentation_resize
 
 
+# average html annotation length: train: 181.327 149.753
+# samples train: 500777, val: 9115
 class PubTabNet(Dataset):
     """Load PubTabNet for different training purposes."""
 
@@ -43,7 +44,6 @@ class PubTabNet(Dataset):
 
     def __getitem__(self, index: int) -> Any:
         if self.label_type == "image":
-            # training vqvae and pretraining visual encoder only needs images
             img = Image.open(self.root_dir / self.split / self.img_list[index])
             if self.transform:
                 sample = self.transform(img)
@@ -71,7 +71,7 @@ class PubTabNet(Dataset):
 
                 img_bboxes = [
                     self.transform(img.crop(bbox[0])) for bbox in bboxes_texts
-                ]  # crop to a limit number of boxes for gpu memory
+                ]
 
                 text_bboxes = [
                     {"filename": obj[0], "bbox_id": i, "cell": j[1]}

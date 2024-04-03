@@ -3,14 +3,12 @@ import torch
 from torch import Tensor, nn
 from torchtext.vocab import Vocab
 import tokenizers as tk
-from torch.profiler import profile, record_function, ProfilerActivity
 
 from src.utils import pred_token_within_range, subsequent_mask
 from src.vocab import (
     HTML_TOKENS,
     TASK_TOKENS,
     RESERVED_TOKENS,
-    CELL_NUM_TOKENS,
     BBOX_TOKENS,
 )
 
@@ -19,7 +17,9 @@ VALID_HTML_TOKEN = ["<eos>"] + HTML_TOKENS
 INVALID_CELL_TOKEN = (
     ["<sos>", "<pad>", "<empty>", "<sep>"] + TASK_TOKENS + RESERVED_TOKENS
 )
-VALID_BBOX_TOKEN = ["<eos>"] + BBOX_TOKENS  # image size unconsidered
+VALID_BBOX_TOKEN = [
+    "<eos>"
+] + BBOX_TOKENS  # image size will be addressed after instantiation
 
 
 class Batch:
@@ -47,7 +47,6 @@ class Batch:
         self.target = target
         self.vocab = vocab
         self.image_size = self.image.shape[-1]
-        # self.ntoken_total = 0
 
         if "table" in target:
             raise NotImplementedError
@@ -121,9 +120,6 @@ class Batch:
             memory = model.encode(self.image)
 
         # inference + suppress invalid logits + compute loss
-        if "table" in self.target:
-            raise NotImplementedError
-
         if "html" in self.target:
             out_html = self._inference_one_task(
                 model,
@@ -179,7 +175,6 @@ class Batch:
 def configure_optimizer_weight_decay(
     model: nn.Module, weight_decay: float
 ) -> List[Dict]:
-    # weight_decay_whitelist = (nn.Linear, nn.Conv2d, nn.MultiheadAttention)
     weight_decay_blacklist = (nn.LayerNorm, nn.BatchNorm2d, nn.Embedding)
 
     if hasattr(model, "no_weight_decay"):
