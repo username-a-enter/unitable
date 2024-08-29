@@ -1,7 +1,7 @@
-torch
-torchvision
-torchaudio
-torchtext
+torch==2.2.2
+torchvision==0.17.2
+torchaudio==2.2.2
+torchtext==0.17.2
 jsonlines
 beautifulsoup4
 matplotlib
@@ -16,5 +16,4 @@ einops
 ptflops
 tokenizers
 pycocotools
-torchmetrics
 faster-coco-eval

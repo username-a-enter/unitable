@@ -19,7 +19,7 @@ clean:
 > rm -f .venv_done
 
 .done_venv: clean
-> conda create -n $(VENV_NAME) python=3.9 -y
+# > conda create -n $(VENV_NAME) python=3.9 -y
 > $(PIP) install -r requirements.txt
 > $(PIP) install -e .
 > touch $@
